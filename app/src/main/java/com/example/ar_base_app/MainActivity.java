@@ -3,14 +3,34 @@ package com.example.ar_base_app;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.widget.Toast;
 
+import com.esri.arcgisruntime.concurrent.ListenableFuture;
+import com.esri.arcgisruntime.geometry.Envelope;
+import com.esri.arcgisruntime.geometry.GeodeticCurveType;
+import com.esri.arcgisruntime.geometry.GeometryEngine;
+import com.esri.arcgisruntime.geometry.LinearUnit;
+import com.esri.arcgisruntime.geometry.LinearUnitId;
+import com.esri.arcgisruntime.geometry.Point;
+import com.esri.arcgisruntime.loadable.LoadStatus;
 import com.esri.arcgisruntime.mapping.ArcGISScene;
 import com.esri.arcgisruntime.mapping.Basemap;
+import com.esri.arcgisruntime.mapping.NavigationConstraint;
+import com.esri.arcgisruntime.mapping.view.Camera;
+import com.esri.arcgisruntime.mapping.view.DefaultSceneViewOnTouchListener;
 import com.esri.arcgisruntime.toolkit.ar.ArcGISArView;
+import com.google.ar.core.HitResult;
+import com.google.ar.core.Plane;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private ArcGISArView mArView;
+    private boolean mHasConfiguredScene = false;
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,10 +41,108 @@ public class MainActivity extends AppCompatActivity {
         mArView = findViewById(R.id.arView);
         mArView.registerLifecycle(getLifecycle());
 
-        //Adding these 2 lines shows the globe
-        //This verifies we setup the app correctly
-        ArcGISScene scene = new ArcGISScene(Basemap.createImagery());
-        mArView.getSceneView().setScene(scene);
+        // on tap
+        mArView.getSceneView().setOnTouchListener(new DefaultSceneViewOnTouchListener(mArView.getSceneView()) {
+            @Override public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
+                // get the hit results for the tap
+                List<HitResult> hitResults = mArView.getArSceneView().getArFrame().hitTest(motionEvent);
+                // check if the tapped point is recognized as a plane by ArCore
+                if (!hitResults.isEmpty() && hitResults.get(0).getTrackable() instanceof Plane) {
+                    // get a reference to the tapped plane
+                    Plane plane = (Plane) hitResults.get(0).getTrackable();
+                    Toast.makeText(MainActivity.this, "Plane detected with a width of: " + plane.getExtentX(), Toast.LENGTH_SHORT)
+                            .show();
+                    // get the tapped point as a graphics point
+                    android.graphics.Point screenPoint = new android.graphics.Point(Math.round(motionEvent.getX()),
+                            Math.round(motionEvent.getY()));
+                    // if initial transformation set correctly
+                    if (mArView.setInitialTransformationMatrix(screenPoint)) {
+                        // the scene hasn't been configured
+                        if (!mHasConfiguredScene) {
+                            loadScene(plane);
+                        } else if (mArView.getSceneView().getScene() != null) {
+                            // use information from the scene to determine the origin camera and translation factor
+                            updateTranslationFactorAndOriginCamera(mArView.getSceneView().getScene(), plane);
+                        }
+                    }
+                } else {
+                    String error = "ArCore doesn't recognize this point as a plane.";
+                    Toast.makeText(MainActivity.this, error, Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, error);
+                }
+                return super.onSingleTapConfirmed(motionEvent);
+            }
+        });
+    }
+
+    /**
+     * Load the mobile scene package and get the first (and only) scene inside it. Set it to the ArView's SceneView and
+     * set the base surface to opaque and remove any navigation constraint, thus allowing the user to look at a scene
+     * from below. Then call updateTranslationFactorAndOriginCamera with the plane detected by ArCore.
+     *
+     * @param plane detected by ArCore based on a tap from the user. The loaded scene will be pinned on this plane.
+     */
+    private void loadScene(Plane plane) {
+        // create a scene from a webscene
+        ArcGISScene scene = new ArcGISScene("https://runtime.maps.arcgis.com/home/webscene/viewer.html?webscene=4233bcc423304f13bd17fbb7da0283cd");
+        // load the scene
+        scene.loadAsync();
+        scene.addDoneLoadingListener(() -> {
+            // if it loaded successfully and the mobile scene package contains a scene
+            if (scene.getLoadStatus() == LoadStatus.LOADED) {
+                // add the scene to the AR view's scene view
+                mArView.getSceneView().setScene(scene);
+                // set the base surface to fully opaque
+                scene.getBaseSurface().setOpacity(0);
+                // let the camera move below ground
+                scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
+                mHasConfiguredScene = true;
+                // set translation factor and origin camera for scene placement in AR
+               updateTranslationFactorAndOriginCamera(scene, plane);
+            } else {
+                String error = "Failed to load the scene: " + scene.getLoadError()
+                        .getMessage();
+                String cause = scene.getLoadError().getCause().toString();
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show();
+                Log.e(TAG, error);
+            }
+        });
+    }
+    /**
+     * Load the scene's first layer and calculate its geographical width. Use the scene's width and ArCore's assessment
+     * of the plane's width to set the AR view's translation transformation factor. Use the center of the scene, corrected
+     * for elevation, as the origin camera's look at point.
+     *
+     * @param scene to display
+     * @param plane detected by ArCore to which the scene should be pinned
+     */
+    private void updateTranslationFactorAndOriginCamera(ArcGISScene scene, Plane plane) {
+        // load the scene's first layer
+        scene.getOperationalLayers().get(0).loadAsync();
+        scene.getOperationalLayers().get(0).addDoneLoadingListener(() -> {
+            // get the scene extent
+            Envelope layerExtent = scene.getOperationalLayers().get(0).getFullExtent();
+            // calculate the width of the layer content in meters
+            double width = GeometryEngine
+                    .lengthGeodetic(layerExtent, new LinearUnit(LinearUnitId.METERS), GeodeticCurveType.GEODESIC);
+            // set the translation factor based on scene content width and desired physical size
+            mArView.setTranslationFactor((width / plane.getExtentX()) / 5.0);
+            // find the center point of the scene content
+            Point centerPoint = layerExtent.getCenter();
+            // find the altitude of the surface at the center
+            ListenableFuture<Double> elevationFuture = mArView.getSceneView().getScene().getBaseSurface()
+                    .getElevationAsync(centerPoint);
+            elevationFuture.addDoneListener(() -> {
+                try {
+                    double elevation = elevationFuture.get();
+                    // create a new origin camera looking at the bottom center of the scene
+                    mArView.setOriginCamera(
+                            new Camera(new Point(centerPoint.getX(), centerPoint.getY(), elevation), 0, 90, 0));
+                } catch (Exception e) {
+                    Log.e(TAG, "Error getting elevation at point: " + e.getMessage());
+                }
+            });
+        });
     }
 
     @Override
@@ -33,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
         //start tracking when app is being used
         if (mArView != null) {
-            mArView.startTracking(ArcGISArView.ARLocationTrackingMode.INITIAL);
+            mArView.startTracking(ArcGISArView.ARLocationTrackingMode.IGNORE);
         }
     }
 
