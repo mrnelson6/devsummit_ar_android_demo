@@ -13,4 +13,23 @@
         android:layout_height="match_parent" >
     </com.esri.arcgisruntime.toolkit.ar.ArcGISArView>
 
+    <include
+        layout="@layout/layout_calibration_controls"
+        app:layout_constraintBottom_toTopOf="@+id/calibrateButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/calibrateButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:layout_marginStart="16dp"
+        android:text="@string/calibrate_button"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

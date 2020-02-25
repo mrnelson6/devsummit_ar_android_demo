@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">AR_base_app</string>
+
+    <string name="altitude_slider_label">Altitude</string>
+    <string name="heading_slider_label">Heading</string>
+    <string name="calibrate_button">Calibrate</string>
 </resources>
