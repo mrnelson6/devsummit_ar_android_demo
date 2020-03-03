@@ -85,28 +85,37 @@ public class MainActivity extends AppCompatActivity {
     private void loadScene(Plane plane) {
         // create a scene from a webscene
         ArcGISScene scene = new ArcGISScene("https://runtime.maps.arcgis.com/home/webscene/viewer.html?webscene=4233bcc423304f13bd17fbb7da0283cd");
-        // load the scene
-        scene.loadAsync();
         scene.addDoneLoadingListener(() -> {
             // if it loaded successfully and the mobile scene package contains a scene
             if (scene.getLoadStatus() == LoadStatus.LOADED) {
                 // add the scene to the AR view's scene view
                 mArView.getSceneView().setScene(scene);
                 // set the base surface to fully opaque
+                //set clipping distance and remove this
                 scene.getBaseSurface().setOpacity(0);
                 // let the camera move below ground
                 scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
                 mHasConfiguredScene = true;
                 // set translation factor and origin camera for scene placement in AR
-               updateTranslationFactorAndOriginCamera(scene, plane);
+                boolean set_hardcoded_values = true;
+                if(set_hardcoded_values)
+                {
+                    mArView.setTranslationFactor(1800);
+                    mArView.setOriginCamera(
+                            new Camera(new Point(-117.16163476, 32.70641720249998, 0.0), 0, 90, 0));
+                } else {
+                    //dynamically calculate the translation factor and origin camera based off the extent and elevation of the scene
+                    updateTranslationFactorAndOriginCamera(scene, plane);
+                }
             } else {
                 String error = "Failed to load the scene: " + scene.getLoadError()
                         .getMessage();
-                String cause = scene.getLoadError().getCause().toString();
                 Toast.makeText(this, error, Toast.LENGTH_LONG).show();
                 Log.e(TAG, error);
             }
         });
+        // load the scene
+        scene.loadAsync();
     }
     /**
      * Load the scene's first layer and calculate its geographical width. Use the scene's width and ArCore's assessment
@@ -117,8 +126,6 @@ public class MainActivity extends AppCompatActivity {
      * @param plane detected by ArCore to which the scene should be pinned
      */
     private void updateTranslationFactorAndOriginCamera(ArcGISScene scene, Plane plane) {
-        // load the scene's first layer
-        scene.getOperationalLayers().get(0).loadAsync();
         scene.getOperationalLayers().get(0).addDoneLoadingListener(() -> {
             // get the scene extent
             Envelope layerExtent = scene.getOperationalLayers().get(0).getFullExtent();
@@ -126,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
             double width = GeometryEngine
                     .lengthGeodetic(layerExtent, new LinearUnit(LinearUnitId.METERS), GeodeticCurveType.GEODESIC);
             // set the translation factor based on scene content width and desired physical size
-            mArView.setTranslationFactor((width / plane.getExtentX()) / 5.0);
+            mArView.setTranslationFactor(width / plane.getExtentX());
             // find the center point of the scene content
             Point centerPoint = layerExtent.getCenter();
             // find the altitude of the surface at the center
@@ -143,6 +150,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         });
+        // load the scene's first layer
+        scene.getOperationalLayers().get(0).loadAsync();
     }
 
     @Override
