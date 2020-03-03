@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AR_base_app</string>
+    <string name="app_name">World scale</string>
 
     <string name="altitude_slider_label">Altitude</string>
     <string name="heading_slider_label">Heading</string>
