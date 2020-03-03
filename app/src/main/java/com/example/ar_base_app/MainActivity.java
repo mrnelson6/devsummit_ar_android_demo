@@ -34,12 +34,15 @@ public class MainActivity extends AppCompatActivity {
         //get the AR view from the activity
         mArView = findViewById(R.id.arView);
         mArView.registerLifecycle(getLifecycle());
+
+        // disable touch interactions with the scene view
+        mArView.getSceneView().setOnTouchListener((view, motionEvent) -> true);
         
         ArcGISScene scene = new ArcGISScene(Basemap.createImagery());
 
         // create an integrated mesh layer
         Portal portal = new Portal("https://www.arcgis.com");
-        PortalItem portalItem = new PortalItem(portal, "d4fb271d1cb747e696bb80adca8487fa");
+        PortalItem portalItem = new PortalItem(portal, "1f97ba887fd4436c8b17a14d83584611");
         IntegratedMeshLayer integratedMeshLayer = new IntegratedMeshLayer(portalItem);
         scene.getOperationalLayers().add(integratedMeshLayer);
 
@@ -48,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
                 "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer");
         scene.getBaseSurface().getElevationSources().add(elevationSource);
         // disable the navigation constraint
-        scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
+        scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.STAY_ABOVE);
 
         // add the scene to the scene view
         mArView.getSceneView().setScene(scene);
@@ -57,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
         integratedMeshLayer.addDoneLoadingListener(() -> {
             if (integratedMeshLayer.getLoadStatus() == LoadStatus.LOADED) {
                 Envelope envelope = integratedMeshLayer.getFullExtent();
-                Camera camera = new Camera(envelope.getCenter().getY(), envelope.getCenter().getX(), 250, 0, 90, 0);
+                Camera camera = new Camera(envelope.getCenter().getY(), envelope.getCenter().getX(), 2500, 0, 90, 0);
                 mArView.setOriginCamera(camera);
             } else {
                 String error ="Error loading integrated mesh layer:" + integratedMeshLayer.getLoadError().getMessage();
@@ -67,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // set the translation factor to enable rapid movement through the scene
-        mArView.setTranslationFactor(1000);
+        mArView.setTranslationFactor(4000);
 
         // turn the space and atmosphere effects on for an immersive experience
         mArView.getSceneView().setSpaceEffect(SpaceEffect.STARS);
