@@ -1,7 +1,11 @@
 package com.example.ar_base_app;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -35,9 +39,14 @@ public class MainActivity extends AppCompatActivity {
         mArView = findViewById(R.id.arView);
         mArView.registerLifecycle(getLifecycle());
 
+        requestPermissions();
+    }
+
+    private void setupArView()
+    {
         // disable touch interactions with the scene view
         mArView.getSceneView().setOnTouchListener((view, motionEvent) -> true);
-        
+
         ArcGISScene scene = new ArcGISScene(Basemap.createImagery());
 
         // create an integrated mesh layer
@@ -94,5 +103,39 @@ public class MainActivity extends AppCompatActivity {
             mArView.stopTracking();
         }
         super.onPause();
+    }
+
+    /**
+     * Request read external storage for API level 23+.
+     */
+    private void requestPermissions() {
+        // define permission to request
+        String[] reqPermission = { Manifest.permission.INTERNET,
+                Manifest.permission.CAMERA};
+        int requestCode = 2;
+        if (ContextCompat.checkSelfPermission(this, reqPermission[0]) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, reqPermission[1]) == PackageManager.PERMISSION_GRANTED){
+            setupArView();
+        } else {
+            // request permission
+            ActivityCompat.requestPermissions(this, reqPermission, requestCode);
+        }
+    }
+
+    /**
+     * Handle the permissions request response.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        if (grantResults.length >= 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                && grantResults[1] == PackageManager.PERMISSION_GRANTED)
+        {
+            setupArView();
+        } else {
+            // report to user that permission was denied
+            Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show();
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }
