@@ -1,13 +1,20 @@
 package com.example.ar_base_app;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.esri.arcgisruntime.geometry.Point;
 import com.esri.arcgisruntime.mapping.ArcGISScene;
@@ -20,6 +27,11 @@ import com.esri.arcgisruntime.mapping.view.GraphicsOverlay;
 import com.esri.arcgisruntime.toolkit.ar.ArLocationDataSource;
 import com.esri.arcgisruntime.toolkit.ar.ArcGISArView;
 import com.esri.arcgisruntime.toolkit.control.JoystickSeekBar;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -42,6 +54,12 @@ public class MainActivity extends AppCompatActivity {
         mArView = findViewById(R.id.arView);
         mArView.registerLifecycle(getLifecycle());
 
+
+        requestPermissions();
+    }
+
+    private void setupArView()
+    {
         setupScene();
         setupCalibration();
     }
@@ -128,9 +146,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        setupAirplaneFinder();
+    }
+
+    private void setupAirplaneFinder()
+    {
+        // get plane model from assets
+        copyFileFromAssetsToCache(getString(R.string.bristol_dae));
+        copyFileFromAssetsToCache(getString(R.string.bristol_png));
+        copyFileFromAssetsToCache(getString(R.string.logo_jpg));
+        copyFileFromAssetsToCache(getString(R.string.b_787_8_dae));
+        copyFileFromAssetsToCache(getString(R.string.texture_png));
+        copyFileFromAssetsToCache(getString(R.string.texture_ref_png));
+
         _graphicsOverlay = new GraphicsOverlay();
         mArView.getSceneView().getGraphicsOverlays().add(_graphicsOverlay);
         _airplaneFinder = new AirplaneFinder(_graphicsOverlay, getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
+        _airplaneFinder = new AirplaneFinder(_graphicsOverlay, getCacheDir() + File.separator);
 
         //animate the planes
         handlerThread.start();
@@ -167,5 +199,71 @@ public class MainActivity extends AppCompatActivity {
             mArView.stopTracking();
         }
         super.onPause();
+    }
+
+    /**
+     * Request read external storage for API level 23+.
+     */
+    private void requestPermissions() {
+        // define permission to request
+        String[] reqPermission = { Manifest.permission.INTERNET,
+                Manifest.permission.CAMERA,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION};
+        int requestCode = 2;
+        if (ContextCompat.checkSelfPermission(this, reqPermission[0]) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, reqPermission[1]) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, reqPermission[2]) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, reqPermission[3]) == PackageManager.PERMISSION_GRANTED){
+            setupArView();
+        } else {
+            // request permission
+            ActivityCompat.requestPermissions(this, reqPermission, requestCode);
+        }
+    }
+
+    /**
+     * Handle the permissions request response.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                            int[] grantResults) {
+        if (grantResults.length >= 4 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                && grantResults[1] == PackageManager.PERMISSION_GRANTED
+                && grantResults[2] == PackageManager.PERMISSION_GRANTED
+                && grantResults[3] == PackageManager.PERMISSION_GRANTED)
+        {
+            setupArView();
+        } else {
+            // report to user that permission was denied
+            Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show();
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+
+    private static final String TAG = MainActivity.class.getSimpleName();
+    private void copyFileFromAssetsToCache(String fileName) {
+        AssetManager assetManager = getApplicationContext().getAssets();
+
+        File file = new File(getCacheDir() + File.separator + fileName);
+
+        if (!file.exists()) {
+            try {
+                InputStream in = assetManager.open(fileName);
+                OutputStream out = new FileOutputStream(getCacheDir() + File.separator + fileName);
+                byte[] buffer = new byte[1024];
+                int read = in.read(buffer);
+                while (read != -1) {
+                    out.write(buffer, 0, read);
+                    read = in.read(buffer);
+                }
+                Log.i(TAG, fileName + " copied to cache.");
+            } catch (Exception e) {
+                Log.e(TAG, "Error writing " + fileName + " to cache. " + e.getMessage());
+            }
+        } else {
+            Log.i(TAG, fileName + " already in cache.");
+        }
     }
 }

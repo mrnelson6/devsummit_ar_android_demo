@@ -4,4 +4,11 @@
     <string name="altitude_slider_label">Altitude</string>
     <string name="heading_slider_label">Heading</string>
     <string name="calibrate_button">Calibrate</string>
+
+    <string name="bristol_dae">Bristol.dae</string>
+    <string name="bristol_png">Bristol.png</string>
+    <string name="logo_jpg">logo.jpg</string>
+    <string name="b_787_8_dae">B_787_8.dae</string>
+    <string name="texture_png">texture.png</string>
+    <string name="texture_ref_png">texture_ref.jpg</string>
 </resources>
