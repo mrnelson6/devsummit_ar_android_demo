@@ -20,6 +20,7 @@ import com.esri.arcgisruntime.mapping.Basemap;
 import com.esri.arcgisruntime.mapping.NavigationConstraint;
 import com.esri.arcgisruntime.mapping.view.Camera;
 import com.esri.arcgisruntime.mapping.view.DefaultSceneViewOnTouchListener;
+import com.esri.arcgisruntime.mapping.view.TransformationMatrixCameraController;
 import com.esri.arcgisruntime.toolkit.ar.ArcGISArView;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
@@ -84,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadScene(Plane plane) {
         // create a scene from a webscene
-        ArcGISScene scene = new ArcGISScene("https://runtime.maps.arcgis.com/home/webscene/viewer.html?webscene=4233bcc423304f13bd17fbb7da0283cd");
+        ArcGISScene scene = new ArcGISScene("https://www.arcgis.com/home/webscene/viewer.html?webscene=6bf6d9f17bdd4d33837e25e1cae4e9c9");
         scene.addDoneLoadingListener(() -> {
             // if it loaded successfully and the mobile scene package contains a scene
             if (scene.getLoadStatus() == LoadStatus.LOADED) {
@@ -92,7 +93,9 @@ public class MainActivity extends AppCompatActivity {
                 mArView.getSceneView().setScene(scene);
                 // set the base surface to fully opaque
                 //set clipping distance and remove this
-                scene.getBaseSurface().setOpacity(0);
+                ((TransformationMatrixCameraController) mArView.getSceneView().getCameraController()).setClippingDistance(180.0);
+                //you could uncomment this line if you didn't want to see the base surface
+                //scene.getBaseSurface().setOpacity(0);
                 // let the camera move below ground
                 scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
                 mHasConfiguredScene = true;
@@ -100,9 +103,9 @@ public class MainActivity extends AppCompatActivity {
                 boolean set_hardcoded_values = true;
                 if(set_hardcoded_values)
                 {
-                    mArView.setTranslationFactor(1800);
+                    mArView.setTranslationFactor(700);
                     mArView.setOriginCamera(
-                            new Camera(new Point(-117.16163476, 32.70641720249998, 0.0), 0, 90, 0));
+                            new Camera(new Point(-117.168654, 32.71012, 0.0), 0, 90, 0));
                 } else {
                     //dynamically calculate the translation factor and origin camera based off the extent and elevation of the scene
                     updateTranslationFactorAndOriginCamera(scene, plane);
