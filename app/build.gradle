@@ -34,5 +34,5 @@ dependencies {
 
     //Add dependencies for Runtime android sdk and android toolkit
     implementation 'com.esri.arcgisruntime:arcgis-android:100.7.0'
-    implementation "com.esri.arcgisruntime:arcgis-android-toolkit:100.6.1"
+    implementation "com.esri.arcgisruntime:arcgis-android-toolkit:100.7.0"
 }
