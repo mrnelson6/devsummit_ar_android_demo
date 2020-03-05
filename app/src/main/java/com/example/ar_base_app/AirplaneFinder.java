@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 
 public class AirplaneFinder {
@@ -39,10 +40,13 @@ public class AirplaneFinder {
     private int _updatesPerSecond = 30;
     private  int _secondsPerQuery = 10;
     private String _basePath;
-    public AirplaneFinder(GraphicsOverlay go, String basePath)
+    private boolean _useRealPlanes = true;
+
+    public AirplaneFinder(GraphicsOverlay go, String basePath, boolean useRealPlanes)
     {
         _graphicsOverlay = go;
         _basePath = basePath;
+        _useRealPlanes = useRealPlanes;
         setupScene();
     }
 
@@ -79,12 +83,59 @@ public class AirplaneFinder {
         return ret_val;
     }
 
+    private void generateRandomPlanes()
+    {
+        int numPlanes = 25;
+        for (int i = 0; i < numPlanes; i++)
+        {
+            Random rng = new Random();
+            double centerX = _center.getX() + rng.nextDouble() - 0.5;
+            double centerY = _center.getY() + rng.nextDouble() - 0.5;
+            double centerZ = _center.getZ() + (rng.nextDouble() * 9000) + 1000.0;
+            Point point = new Point(centerX, centerY, centerZ, _center.getSpatialReference());
+            Graphic gr;
+            boolean bigPlane = false;
+            String callsign = "";
+            double velocity = (rng.nextDouble() * 200.0) + 100.0;
+            double heading = rng.nextDouble() * 359.0;
+            int val = rng.nextInt(899) + 100;
+            if(i < numPlanes / 4)
+            {
+                callsign = "N" + val;
+                gr = new Graphic(point, _smallPlane3DSymbol);
+                gr.getAttributes().put("HEADING", heading);
+                gr.getAttributes().put("CALLSIGN", callsign);
+            }
+            else
+            {
+                callsign = "ARC" + val;
+                gr = new Graphic(point, _largePlane3DSymbol);
+                bigPlane = true;
+                gr.getAttributes().put("HEADING", heading + 180);
+                gr.getAttributes().put("CALLSIGN", callsign);
+            }
+
+            int unixTimestamp = (int) (System.currentTimeMillis() / 1000);
+            Plane p = new Plane(gr, velocity, 0.0, heading, unixTimestamp, bigPlane, callsign);
+            planes.put(callsign, p);
+            _graphicsOverlay.getGraphics().add(gr);
+        }
+    }
+
     private int updateCounter = -1;
     public void animatePlanes()
     {
+        if(!_useRealPlanes && updateCounter == -1)
+        {
+            if (_center == null)
+            {
+                return;
+            }
+            generateRandomPlanes();
+        }
         updateCounter++;
         //deletes planes that haven't sent us a new update in a while
-        if (updateCounter % (_secondsPerCleanup * _updatesPerSecond) == 0)
+        if (_useRealPlanes && (updateCounter % (_secondsPerCleanup * _updatesPerSecond) == 0))
         {
             ArrayList<String> planes_to_remove = new ArrayList();
             int unixTimestamp = (int) (System.currentTimeMillis() / 1000);
@@ -102,7 +153,7 @@ public class AirplaneFinder {
             }
         }
         //if we haven't queried the nearby planes locations in a while do this
-        if (updateCounter % (_updatesPerSecond * _secondsPerQuery) == 0)
+        if (_useRealPlanes && (updateCounter % (_updatesPerSecond * _secondsPerQuery) == 0))
         {
             AddPlanesViaAPI();
         }
@@ -139,8 +190,8 @@ public class AirplaneFinder {
         try {
             Point center;
             if (_center == null) {
-                //defaulting to Redlands, CA
-                center = new Point(-117.18, 33.5556, SpatialReference.create(4326));
+                //defaulting to palm springs 33.823174, -116.543048
+                center = new Point(-116.543048, 33.823174, SpatialReference.create(4326));
             } else {
                 center = _center;
             }

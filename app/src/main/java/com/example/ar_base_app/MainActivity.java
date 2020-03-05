@@ -161,8 +161,7 @@ public class MainActivity extends AppCompatActivity {
 
         _graphicsOverlay = new GraphicsOverlay();
         mArView.getSceneView().getGraphicsOverlays().add(_graphicsOverlay);
-        _airplaneFinder = new AirplaneFinder(_graphicsOverlay, getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
-        _airplaneFinder = new AirplaneFinder(_graphicsOverlay, getCacheDir() + File.separator);
+        _airplaneFinder = new AirplaneFinder(_graphicsOverlay, getCacheDir() + File.separator, false);
 
         //animate the planes
         handlerThread.start();
