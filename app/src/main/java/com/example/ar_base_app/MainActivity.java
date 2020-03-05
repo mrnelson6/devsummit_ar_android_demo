@@ -98,23 +98,14 @@ public class MainActivity extends AppCompatActivity {
                 mArView.getSceneView().setScene(scene);
                 // set the base surface to fully opaque
                 //set clipping distance and remove this
-                ((TransformationMatrixCameraController) mArView.getSceneView().getCameraController()).setClippingDistance(180.0);
+                mArView.setClippingDistance(180.0);
                 //you could uncomment this line if you didn't want to see the base surface
                 //scene.getBaseSurface().setOpacity(0);
                 // let the camera move below ground
                 scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
                 mHasConfiguredScene = true;
                 // set translation factor and origin camera for scene placement in AR
-                boolean set_hardcoded_values = true;
-                if(set_hardcoded_values)
-                {
-                    mArView.setTranslationFactor(700);
-                    mArView.setOriginCamera(
-                            new Camera(new Point(-117.168654, 32.71012, 0.0), 0, 90, 0));
-                } else {
-                    //dynamically calculate the translation factor and origin camera based off the extent and elevation of the scene
-                    updateTranslationFactorAndOriginCamera(scene, plane);
-                }
+                updateTranslationFactorAndOriginCamera(scene, plane);
             } else {
                 String error = "Failed to load the scene: " + scene.getLoadError()
                         .getMessage();
@@ -134,32 +125,41 @@ public class MainActivity extends AppCompatActivity {
      * @param plane detected by ArCore to which the scene should be pinned
      */
     private void updateTranslationFactorAndOriginCamera(ArcGISScene scene, Plane plane) {
-        scene.getOperationalLayers().get(0).addDoneLoadingListener(() -> {
-            // get the scene extent
-            Envelope layerExtent = scene.getOperationalLayers().get(0).getFullExtent();
-            // calculate the width of the layer content in meters
-            double width = GeometryEngine
-                    .lengthGeodetic(layerExtent, new LinearUnit(LinearUnitId.METERS), GeodeticCurveType.GEODESIC);
-            // set the translation factor based on scene content width and desired physical size
-            mArView.setTranslationFactor(width / plane.getExtentX());
-            // find the center point of the scene content
-            Point centerPoint = layerExtent.getCenter();
-            // find the altitude of the surface at the center
-            ListenableFuture<Double> elevationFuture = mArView.getSceneView().getScene().getBaseSurface()
-                    .getElevationAsync(centerPoint);
-            elevationFuture.addDoneListener(() -> {
-                try {
-                    double elevation = elevationFuture.get();
-                    // create a new origin camera looking at the bottom center of the scene
-                    mArView.setOriginCamera(
-                            new Camera(new Point(centerPoint.getX(), centerPoint.getY(), elevation), 0, 90, 0));
-                } catch (Exception e) {
-                    Log.e(TAG, "Error getting elevation at point: " + e.getMessage());
-                }
+        boolean set_hardcoded_values = true;
+        if(set_hardcoded_values)
+        {
+            mArView.setTranslationFactor(700);
+            mArView.setOriginCamera(
+                    new Camera(new Point(-117.168654, 32.71012, 0.0), 0, 90, 0));
+        } else {
+            //dynamically calculate the translation factor and origin camera based off the extent and elevation of the scene
+            scene.getOperationalLayers().get(0).addDoneLoadingListener(() -> {
+                // get the scene extent
+                Envelope layerExtent = scene.getOperationalLayers().get(0).getFullExtent();
+                // calculate the width of the layer content in meters
+                double width = GeometryEngine
+                        .lengthGeodetic(layerExtent, new LinearUnit(LinearUnitId.METERS), GeodeticCurveType.GEODESIC);
+                // set the translation factor based on scene content width and desired physical size
+                mArView.setTranslationFactor(width / plane.getExtentX());
+                // find the center point of the scene content
+                Point centerPoint = layerExtent.getCenter();
+                // find the altitude of the surface at the center
+                ListenableFuture<Double> elevationFuture = mArView.getSceneView().getScene().getBaseSurface()
+                        .getElevationAsync(centerPoint);
+                elevationFuture.addDoneListener(() -> {
+                    try {
+                        double elevation = elevationFuture.get();
+                        // create a new origin camera looking at the bottom center of the scene
+                        mArView.setOriginCamera(
+                                new Camera(new Point(centerPoint.getX(), centerPoint.getY(), elevation), 0, 90, 0));
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error getting elevation at point: " + e.getMessage());
+                    }
+                });
             });
-        });
-        // load the scene's first layer
-        scene.getOperationalLayers().get(0).loadAsync();
+            // load the scene's first layer
+            scene.getOperationalLayers().get(0).loadAsync();
+        }
     }
 
     @Override
