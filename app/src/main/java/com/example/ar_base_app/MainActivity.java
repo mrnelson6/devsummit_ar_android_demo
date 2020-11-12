@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
                 "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer");
         scene.getBaseSurface().getElevationSources().add(elevationSource);
         // disable the navigation constraint
-        scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.STAY_ABOVE);
+        scene.getBaseSurface().setNavigationConstraint(NavigationConstraint.NONE);
 
         // add the scene to the scene view
         mArView.getSceneView().setScene(scene);
